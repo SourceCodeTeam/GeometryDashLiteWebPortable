@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry Dash Lite</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{background:#000;font-family:Arial,sans-serif;color:#fff;overflow:hidden;position:relative}#loader{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1000;transition:opacity .5s}.loader-spinner{width:50px;height:50px;border:5px solid #333;border-top:5px solid #f36;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}.loader-text{color:#f36;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:2px}#controlPanel{position:fixed;top:10px;right:10px;z-index:100;display:flex;gap:10px;opacity:.8;transition:opacity .3s}#controlPanel:hover{opacity:1}.control-btn{background:rgba(255,51,102,.8);color:#fff;border:0;padding:10px 15px;border-radius:5px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:5px;transition:all .3s;backdrop-filter:blur(5px)}.control-btn:hover{background:#f36;transform:scale(1.05)}#infoPanel{position:fixed;bottom:10px;left:10px;background:rgba(0,0,0,.7);padding:10px 15px;border-radius:8px;border-left:4px solid #f36;max-width:300px;backdrop-filter:blur(5px);z-index:100}.info-title{color:#f36;font-size:14px;font-weight:700;margin-bottom:5px}.info-text{color:#fff;font-size:12px;line-height:1.4}.key{display:inline-block;background:#333;color:#fff;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:11px;margin:0 2px}#gameFrame{width:100vw;height:100vh;border:0;position:fixed;top:0;left:0;z-index:10}#mobileControls{position:fixed;bottom:20px;left:0;width:100%;display:none;justify-content:center;gap:30px;padding:20px;z-index:90}.mobile-btn{width:70px;height:70px;border-radius:50%;background:rgba(255,51,102,.8);border:3px solid rgba(255,255,255,.3);color:#fff;font-size:24px;display:flex;justify-content:center;align-items:center;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(5px)}.mobile-btn:active{background:#f36;transform:scale(.95)}@media (max-width:768px){#infoPanel{bottom:100px;left:50%;transform:translateX(-50%);width:90%;max-width:none}#controlPanel{top:auto;bottom:10px;right:10px}#mobileControls{display:flex}.control-btn{padding:8px 12px;font-size:12px}}#notification{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.9);padding:20px;border-radius:10px;border:2px solid #f36;text-align:center;z-index:1000;display:none;backdrop-filter:blur(10px);max-width:300px}.notification-title{color:#f36;margin-bottom:10px;font-size:20px}
+    </style>
+</head>
+<body>
+    <div id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Загрузка Geometry Dash...</div>
+    </div>
+
+    <div id="controlPanel">
+        <button class="control-btn" onclick="toggleFullscreen()" title="Полный экран">⛶</button>
+        <button class="control-btn" onclick="restartGame()" title="Перезапустить">🔄</button>
+        <button class="control-btn" onclick="showControls()" title="Управление">🎮</button>
+    </div>
+
+    <div id="infoPanel">
+        <div class="info-title">🎮 Управление:</div>
+        <div class="info-text">
+            ПК: <span class="key">ПРОБЕЛ</span> для прыжка<br>
+            Сенсор: нажми на экран<br>
+            <span id="connectionStatus">🟢 Онлайн</span>
+        </div>
+    </div>
+
+    <div id="mobileControls">
+        <div class="mobile-btn" ontouchstart="jump()" ontouchend="stopJump()">⬆️</div>
+        <div class="mobile-btn" ontouchstart="restartGame()" ontouchend="null">🔄</div>
+    </div>
+
+    <iframe id="gameFrame" src="https://geometry-dash-lite.io/gdl/" allowfullscreen></iframe>
+
+    <div id="notification">
+        <div class="notification-title">Инструкция</div>
+        <p>Используй <span class="key">ПРОБЕЛ</span> для прыжка</p>
+        <p>Избегай препятствия!</p>
+        <button class="control-btn" onclick="hideNotification()" style="margin-top:10px;">Начать игру</button>
+    </div>
+
+    <script>
+        const loader=document.getElementById('loader');
+        const gameFrame=document.getElementById('gameFrame');
+        const connectionStatus=document.getElementById('connectionStatus');
+        const notification=document.getElementById('notification');
+        let isFullscreen=false;
+        let isJumping=false;
+
+        window.onload=function(){
+            setTimeout(()=>{
+                loader.style.opacity='0';
+                setTimeout(()=>{
+                    loader.style.display='none';
+                    if(!localStorage.getItem('geometryDashViewed')){
+                        setTimeout(()=>{
+                            notification.style.display='block';
+                            localStorage.setItem('geometryDashViewed','true');
+                        },1000);
+                    }
+                },500);
+            },2000);
+            checkConnection();
+            setInterval(checkConnection,30000);
+        };
+
+        function checkConnection(){
+            if(navigator.onLine){
+                connectionStatus.innerHTML='🟢 Онлайн';
+                connectionStatus.style.color='#4CAF50';
+            }else{
+                connectionStatus.innerHTML='🔴 Офлайн';
+                connectionStatus.style.color='#f44336';
+            }
+        }
+
+        document.addEventListener('keydown',function(event){
+            if(event.code==='Space'){
+                event.preventDefault();
+                jump();
+            }
+            if(event.code==='F11'){
+                event.preventDefault();
+                toggleFullscreen();
+            }
+            if(event.code==='KeyR'&&(event.ctrlKey||event.metaKey)){
+                event.preventDefault();
+                restartGame();
+            }
+        });
+
+        function jump(){
+            if(isJumping)return;
+            isJumping=true;
+            try{
+                gameFrame.contentWindow.postMessage('jump','*');
+            }catch(e){
+                visualJumpEffect();
+            }
+            setTimeout(()=>{
+                isJumping=false;
+            },300);
+        }
+
+        function stopJump(){
+            isJumping=false;
+        }
+
+        function visualJumpEffect(){
+            gameFrame.style.transform='scale(0.99)';
+            setTimeout(()=>{
+                gameFrame.style.transform='scale(1)';
+            },100);
+        }
+
+        function restartGame(){
+            if(confirm('Перезапустить игру?')){
+                gameFrame.src=gameFrame.src;
+                showToast('🔄 Игра перезапускается...');
+            }
+        }
+
+        function toggleFullscreen(){
+            if(!isFullscreen){
+                if(gameFrame.requestFullscreen){
+                    gameFrame.requestFullscreen();
+                }else if(gameFrame.webkitRequestFullscreen){
+                    gameFrame.webkitRequestFullscreen();
+                }else if(gameFrame.msRequestFullscreen){
+                    gameFrame.msRequestFullscreen();
+                }
+                isFullscreen=true;
+            }else{
+                if(document.exitFullscreen){
+                    document.exitFullscreen();
+                }else if(document.webkitExitFullscreen){
+                    document.webkitExitFullscreen();
+                }else if(document.msExitFullscreen){
+                    document.msExitFullscreen();
+                }
+                isFullscreen=false;
+            }
+        }
+
+        document.addEventListener('fullscreenchange',updateFullscreenStatus);
+        document.addEventListener('webkitfullscreenchange',updateFullscreenStatus);
+        document.addEventListener('msfullscreenchange',updateFullscreenStatus);
+
+        function updateFullscreenStatus(){
+            isFullscreen=!!(document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement);
+        }
+
+        function showControls(){
+            notification.innerHTML=`
+                <div class="notification-title">🎮 Управление</div>
+                <p><span class="key">ПРОБЕЛ</span> - Прыжок</p>
+                <p><span class="key">F11</span> - Полный экран</p>
+                <p><span class="key">Ctrl+R</span> - Перезапуск</p>
+                <p>🖱️ Клик - Прыжок на ПК</p>
+                <p>👆 Тап - Прыжок на телефоне</p>
+                <button class="control-btn" onclick="hideNotification()" style="margin-top:10px;">Закрыть</button>
+            `;
+            notification.style.display='block';
+        }
+
+        function hideNotification(){
+            notification.style.display='none';
+        }
+
+        function showToast(message){
+            const toast=document.createElement('div');
+            toast.textContent=message;
+            toast.style.cssText=`
+                position:fixed;top:20%;left:50%;transform:translateX(-50%);
+                background:rgba(0,0,0,.8);color:#fff;padding:10px 20px;
+                border-radius:5px;border-left:4px solid #f36;z-index:1000;
+                animation:fadeInOut 2s;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(()=>{
+                toast.style.opacity='0';
+                setTimeout(()=>{
+                    document.body.removeChild(toast);
+                },500);
+            },1500);
+        }
+
+        const style=document.createElement('style');
+        style.textContent=`
+            @keyframes fadeInOut{0%{opacity:0;top:15%}10%{opacity:1;top:20%}90%{opacity:1;top:20%}100%{opacity:0;top:15%}}
+        `;
+        document.head.appendChild(style);
+
+        window.addEventListener('message',function(event){
+            if(event.data==='gameLoaded'){
+                console.log('Игра загружена');
+            }
+        });
+
+        let touchStartY=0;
+        document.addEventListener('touchstart',function(event){
+            touchStartY=event.touches[0].clientY;
+            jump();
+        },{passive:true});
+
+        document.addEventListener('touchend',function(event){
+            stopJump();
+        },{passive:true});
+
+        document.addEventListener('contextmenu',function(event){
+            event.preventDefault();
+            return false;
+        });
+
+        gameFrame.onerror=function(){
+            showToast('⚠️ Ошибка загрузки игры');
+        };
+// scriptov nety idi naxyu v moi tgk using_unity
+        gameFrame.onload=function(){
+            showToast('✅ Игра загружена');
+        };
+    </script>
+</body>
+</html>
